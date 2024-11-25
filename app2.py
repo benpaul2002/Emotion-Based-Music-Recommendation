@@ -61,19 +61,12 @@ def get_dominant_emotion(emotions_list):
 
 # Main function for YouTube app
 def run_youtube_app():
-    # Title and description
-    # st.title("Emotion-Based YouTube Music Recommendation 🎥")
-    # st.write("Choose between using a **webcam** or uploading a **video file**, and we'll detect your emotion to recommend music!")
-
-    # Input type selector
     input_type = st.radio("Select Input Type", ("Webcam", "Upload Video"))
-    # Notification toggle
     notifications_enabled = st.checkbox("Enable Notifications", value=True)
 
-
-    detector = FER(mtcnn=True)  # Initialize the emotion detector
-    FRAME_WINDOW = st.image([])  # Placeholder for displaying frames
-    VIDEO_PLACEHOLDER = st.empty()  # Placeholder for the YouTube video
+    detector = FER(mtcnn=True)
+    FRAME_WINDOW = st.image([])
+    VIDEO_PLACEHOLDER = st.empty()
 
     emotion_history = []  # Stores tuples of (emotion, timestamp)
     last_dominant_emotion = None
@@ -83,7 +76,7 @@ def run_youtube_app():
     if input_type == "Webcam":
         run = st.checkbox("Start Webcam")
         if run:
-            cap = cv2.VideoCapture(0)  # Open webcam
+            cap = cv2.VideoCapture(0)
         
     elif input_type == "Upload Video":
         uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
@@ -102,11 +95,9 @@ def run_youtube_app():
                 st.error("Failed to capture video. Check your webcam.")
                 break
 
-            # Convert frame to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             FRAME_WINDOW.image(rgb_frame, channels="RGB")
 
-            # Check if 5 seconds have passed since last emotion detection
             current_time = time.time()
             if current_time - last_emotion_time >= 5:
                 last_emotion_time = current_time
@@ -122,12 +113,11 @@ def run_youtube_app():
                     one_minute_ago = datetime.now() - timedelta(minutes=1)
                     emotion_history = [(e, t) for e, t in emotion_history if t > one_minute_ago]
 
-                    # Determine dominant emotion in the last minute
                     dominant_emotion = get_dominant_emotion(emotion_history)
                     if dominant_emotion != last_dominant_emotion:
                         last_dominant_emotion = dominant_emotion
                         if notifications_enabled:
-                            app_url = "http://localhost:8501"  # Replace with your ap's URL
+                            app_url = "http://localhost:8501"
                             st.components.v1.html(f"""
                             <script>
                                 const appUrl = "{app_url}";
@@ -153,7 +143,6 @@ def run_youtube_app():
                         st.write(f"**New Dominant Emotion: {dominant_emotion.capitalize()}**")
                         st.write("Fetching a song based on your emotion...")
 
-                        # Get a song for the detected emotion
                         if dominant_emotion in emotion_to_songs:
                             video_url = get_youtube_video(emotion_to_songs[dominant_emotion][0])
                             if video_url:
