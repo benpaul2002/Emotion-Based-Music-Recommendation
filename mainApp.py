@@ -38,7 +38,70 @@ def authenticate_spotify():
         return st.session_state.spotify
 
     # Display login button
-    st.markdown(f"[Log in to Spotify]({LOGIN_URL})")
+    # st.markdown(f"[Log in to Spotify]({LOGIN_URL})")
+
+    st.markdown(
+        f"""
+        <style>
+            .spotify-button {{
+                background-color: #0a421e;
+                color: white;
+                padding: 15px 32px;
+                border: none;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }}
+            
+            .spotify-button:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+                background-color: #116f32;
+            }}
+            
+            .spotify-button:active {{
+                transform: translateY(1px);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            
+            .spotify-button::before {{
+                content: '';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 100%;
+                height: 100%;
+                transform: translate(-50%, -50%) scale(0);
+                transition: transform 0.5s ease-out;
+            }}
+            
+            .spotify-button:hover::before {{
+                transform: translate(-50%, -50%) scale(2);
+            }}
+            
+            .button-container {{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 40px 0;
+            }}
+        </style>
+        
+        <div class="button-container">
+            <a href="{LOGIN_URL}">
+                <button class="spotify-button">
+                    Connect with Spotify
+                </button>
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Check for access token file
     try:
@@ -55,62 +118,29 @@ def authenticate_spotify():
 
     return None
 
-# def authenticate_spotify():
-#     if "spotify" not in st.session_state:
-#         st.session_state.spotify = None
-#         st.session_state.spotify_token_info = None
-
-#     if st.session_state.spotify is None:
-#         # Initialize SpotifyOAuth
-#         auth_manager = SpotifyOAuth(
-#             client_id=SPOTIFY_CLIENT_ID,
-#             client_secret=SPOTIFY_CLIENT_SECRET,
-#             redirect_uri=SPOTIFY_REDIRECT_URI,
-#             scope=scope,
-#             cache_path=".spotify_cache"  # Optional: Cache user tokens
-#         )
-
-#         # Generate the Spotify authorization URL
-#         auth_url = auth_manager.get_authorize_url()
-#         st.markdown(f"[Log in to Spotify]({auth_url})")
-
-#         # Capture the redirect URL
-#         redirect_url = st.text_input("Enter the URL you were redirected to after logging in:")
-
-#         if redirect_url:
-#             try:
-#                 with open("access_token.txt", "r") as token_file:
-#                     access_token = token_file.read().strip()
-#                 spotify = spotipy.Spotify(auth=access_token)
-#                 st.success("Authentication successful!")
-#                 user_profile = spotify.me()
-#                 st.write("Welcome, ", user_profile['display_name'])
-#             except FileNotFoundError:
-#                 st.error("No access token found. Please log in again.")
-
-#     else:
-#         # Reuse existing Spotify session
-#         return st.session_state.spotify
-
 st.title("Emotion-Based Music Recommendation 🎵")
-
-if "spotify" not in st.session_state or st.session_state.spotify is None:
-    st.write("Log in to Spotify to get personalized song recommendations.")
-    authenticate_spotify()
-
-if st.session_state.spotify:
-    try:
-        sp = st.session_state.spotify
-        user_profile = sp.me()  # This might fail if `sp` is None
-        st.write(f"Welcome, {user_profile['display_name']}!")
-    except AttributeError:
-        st.error("Spotify client is not properly initialized. Please log in again.")
 
 st.sidebar.title("Navigation")
 platform_choice = st.sidebar.radio(
     "Select your platform",
     ("Spotify", "YouTube")
 )
+
+if platform_choice=="Spotify":
+    if "spotify" not in st.session_state or st.session_state.spotify is None:
+        # st.write("Log in to Spotify to get personalized song recommendations.")
+        spotify_client = authenticate_spotify()
+        if not spotify_client:
+            st.stop()
+
+if st.session_state.spotify:
+    try:
+        sp = st.session_state.spotify
+        user_profile = sp.me()  # This might fail if `sp` is None
+        st.session_state.user_product = user_profile.get("product", "free")
+        # st.write(f"Welcome, {user_profile['display_name']}!")
+    except AttributeError:
+        st.error("Spotify client is not properly initialized. Please log in again.")
 
 st.components.v1.html("""
 <script>

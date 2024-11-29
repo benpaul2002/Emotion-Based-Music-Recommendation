@@ -33,19 +33,6 @@ emotion_to_songs = {
     "disgust": ["https://open.spotify.com/track/0fBPwRmfNmOdpNcxOoli9Q?si=eec02ce571f0432b"]
 }
 
-# def authenticate_spotify():
-#     auth_manager = SpotifyOAuth(
-#         client_id=SPOTIFY_CLIENT_ID,
-#         client_secret=SPOTIFY_CLIENT_SECRET,
-#         redirect_uri=SPOTIFY_REDIRECT_URI,
-#         scope=scope,
-#     )
-#     sp = spotipy.Spotify(auth_manager=auth_manager)
-#     return sp
-
-# user_profile = sp.me()
-# user_product = user_profile.get("product", "free")
-
 def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
     if dominant_emotion in emotion_to_songs:
         song_uri = emotion_to_songs[dominant_emotion][0]
@@ -57,30 +44,45 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
         SONG_PLACEHOLDER.empty()
         SONG_PLACEHOLDER.markdown(
             f"""
-            ### **{song_name}** by {artist_names}
+            ### 🎵 **{song_name}** by {artist_names}
             [Play on Spotify Web Player]({song_uri})
             """
         )
 
         if user_product == "premium":
+            # Display in-app playback interface
+            try:
+                with open("access_token.txt", "r") as f:
+                    token = f.read().strip()
+            except FileNotFoundError:
+                st.warning("Log in to Spotify to proceed.")
             SONG_PLACEHOLDER.markdown("**Playing in-app...**")
-            SONG_PLACEHOLDER.components.v1.html(
+            SONG_PLACEHOLDER.markdown(
                 f"""
+                <iframe src="{song_uri}"
+                        width="300"
+                        height="380"
+                        frameborder="0"
+                        allowtransparency="true"
+                        allow="encrypted-media">
+                </iframe>
                 <script src="https://sdk.scdn.co/spotify-player.js"></script>
                 <script>
                     window.onSpotifyWebPlaybackSDKReady = () => {{
-                        const token = '{sp.auth_manager.get_access_token()}';
                         const player = new Spotify.Player({{
                             name: 'Streamlit Music Player',
-                            getOAuthToken: cb => {{ cb(token); }},
+                            getOAuthToken: cb => {{ cb('{token}'); }},
                             volume: 0.5
                         }});
 
-                        player.addListener('ready', {{ device_id }} => {{
+                        player.addListener('ready', ({{
+                            device_id
+                        }}) => {{
+                            console.log('Ready with Device ID', device_id);
                             fetch('https://api.spotify.com/v1/me/player/play', {{
                                 method: 'PUT',
                                 headers: {{
-                                    'Authorization': `Bearer ${token}`,
+                                    'Authorization': `Bearer {token}`,
                                     'Content-Type': 'application/json',
                                 }},
                                 body: JSON.stringify({{
@@ -92,8 +94,66 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
                         player.connect();
                     }};
                 </script>
-                """,
-                height=300,
+                """, unsafe_allow_html=True
             )
+        else:
+            SONG_PLACEHOLDER.markdown("Upgrade to Spotify Premium for in-app playback.")
     else:
         SONG_PLACEHOLDER.markdown("No song mapping found for this emotion.")
+
+
+
+
+# def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
+#     if dominant_emotion in emotion_to_songs:
+#         song_uri = emotion_to_songs[dominant_emotion][0]
+#         track = sp.track(song_uri)
+#         song_name = track['name']
+#         artist_names = ', '.join(artist['name'] for artist in track['artists'])
+
+#         # Clear previous song and display the new one
+#         SONG_PLACEHOLDER.empty()
+#         SONG_PLACEHOLDER.markdown(
+#             f"""
+#             ### **{song_name}** by {artist_names}
+#             [Play on Spotify Web Player]({song_uri})
+#             """
+#         )
+
+#         if user_product == "premium":
+#             SONG_PLACEHOLDER.markdown("**Playing in-app...**")
+#             SONG_PLACEHOLDER.components.v1.html(
+#                 f"""
+#                 <script src="https://sdk.scdn.co/spotify-player.js"></script>
+#                 <script>
+#                     window.onSpotifyWebPlaybackSDKReady = () => {{
+#                         const token = '{sp.auth_manager.get_access_token()}';
+#                         const player = new Spotify.Player({{
+#                             name: 'Streamlit Music Player',
+#                             getOAuthToken: cb => {{ cb(token); }},
+#                             volume: 0.5
+#                         }});
+
+#                         player.addListener('ready', {{ device_id }} => {{
+#                             fetch('https://api.spotify.com/v1/me/player/play', {{
+#                                 method: 'PUT',
+#                                 headers: {{
+#                                     'Authorization': `Bearer ${token}`,
+#                                     'Content-Type': 'application/json',
+#                                 }},
+#                                 body: JSON.stringify({{
+#                                     uris: ['{song_uri}']
+#                                 }})
+#                             }});
+#                         }});
+
+#                         player.connect();
+#                     }};
+#                 </script>
+#                 """,
+#                 height=300,
+#             )
+#     else:
+#         SONG_PLACEHOLDER.markdown("No song mapping found for this emotion.")
+
+# Refused to frame 'https://open.spotify.com/' because an ancestor violates the following Content Security Policy directive: "frame-ancestors 'self'
