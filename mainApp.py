@@ -12,12 +12,100 @@ from datetime import datetime, timedelta
 import tempfile
 from app import get_spotify_song
 from app2 import get_youtube_video
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+from spotipy import Spotify
 
-# Title and Description
+SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
+SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
+SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
+scope = "user-read-playback-state user-modify-playback-state streaming user-read-private"
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
+                                               client_secret=SPOTIFY_CLIENT_SECRET,
+                                               redirect_uri=SPOTIFY_REDIRECT_URI,
+                                               scope=scope))
+
+LOGIN_URL = "http://localhost:8888/login"
+
+def authenticate_spotify():
+    if "spotify" not in st.session_state:
+        st.session_state.spotify = None
+
+    # Check if Spotify session exists
+    if st.session_state.spotify:
+        st.success("You are already authenticated!")
+        return st.session_state.spotify
+
+    # Display login button
+    st.markdown(f"[Log in to Spotify]({LOGIN_URL})")
+
+    # Check for access token file
+    try:
+        with open("access_token.txt", "r") as f:
+            access_token = f.read().strip()
+        st.session_state.spotify = Spotify(auth=access_token)
+        
+        # Fetch and display user information
+        user_profile = st.session_state.spotify.me()
+        st.success(f"Welcome, {user_profile['display_name']}!")
+        return st.session_state.spotify
+    except FileNotFoundError:
+        st.warning("Log in to Spotify to proceed.")
+
+    return None
+
+# def authenticate_spotify():
+#     if "spotify" not in st.session_state:
+#         st.session_state.spotify = None
+#         st.session_state.spotify_token_info = None
+
+#     if st.session_state.spotify is None:
+#         # Initialize SpotifyOAuth
+#         auth_manager = SpotifyOAuth(
+#             client_id=SPOTIFY_CLIENT_ID,
+#             client_secret=SPOTIFY_CLIENT_SECRET,
+#             redirect_uri=SPOTIFY_REDIRECT_URI,
+#             scope=scope,
+#             cache_path=".spotify_cache"  # Optional: Cache user tokens
+#         )
+
+#         # Generate the Spotify authorization URL
+#         auth_url = auth_manager.get_authorize_url()
+#         st.markdown(f"[Log in to Spotify]({auth_url})")
+
+#         # Capture the redirect URL
+#         redirect_url = st.text_input("Enter the URL you were redirected to after logging in:")
+
+#         if redirect_url:
+#             try:
+#                 with open("access_token.txt", "r") as token_file:
+#                     access_token = token_file.read().strip()
+#                 spotify = spotipy.Spotify(auth=access_token)
+#                 st.success("Authentication successful!")
+#                 user_profile = spotify.me()
+#                 st.write("Welcome, ", user_profile['display_name'])
+#             except FileNotFoundError:
+#                 st.error("No access token found. Please log in again.")
+
+#     else:
+#         # Reuse existing Spotify session
+#         return st.session_state.spotify
+
 st.title("Emotion-Based Music Recommendation 🎵")
-# st.write("Choose your preferred platform to get started:")
 
-# Sidebar for Navigation
+if "spotify" not in st.session_state or st.session_state.spotify is None:
+    st.write("Log in to Spotify to get personalized song recommendations.")
+    authenticate_spotify()
+
+if st.session_state.spotify:
+    try:
+        sp = st.session_state.spotify
+        user_profile = sp.me()  # This might fail if `sp` is None
+        st.write(f"Welcome, {user_profile['display_name']}!")
+    except AttributeError:
+        st.error("Spotify client is not properly initialized. Please log in again.")
+
 st.sidebar.title("Navigation")
 platform_choice = st.sidebar.radio(
     "Select your platform",
@@ -123,7 +211,7 @@ def run_main_app():
                         st.write(f"**New Dominant Emotion: {dominant_emotion.capitalize()}**")
                         
                         if platform_choice == "Spotify":
-                            get_spotify_song(dominant_emotion, SONG_PLACEHOLDER)
+                            get_spotify_song(st.session_state.spotify, st.session_state.user_product, dominant_emotion, SONG_PLACEHOLDER)
                         elif platform_choice == "YouTube":
                             get_youtube_video(dominant_emotion, VIDEO_PLACEHOLDER)
                 else:

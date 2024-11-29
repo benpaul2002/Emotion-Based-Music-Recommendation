@@ -13,15 +13,15 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 # Spotify API credentials
-SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
-SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
-SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
-scope = "user-read-playback-state user-modify-playback-state streaming user-read-private"
+# SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
+# SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
+# SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
+# scope = "user-read-playback-state user-modify-playback-state streaming user-read-private"
 
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
-                                               client_secret=SPOTIFY_CLIENT_SECRET,
-                                               redirect_uri=SPOTIFY_REDIRECT_URI,
-                                               scope=scope))
+# sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
+#                                                client_secret=SPOTIFY_CLIENT_SECRET,
+#                                                redirect_uri=SPOTIFY_REDIRECT_URI,
+#                                                scope=scope))
 
 emotion_to_songs = {
     "happy": ["https://open.spotify.com/track/1ltBhiP2wDvuxkkAfvZvkJ?si=e84f1ccc47304328"],
@@ -33,10 +33,20 @@ emotion_to_songs = {
     "disgust": ["https://open.spotify.com/track/0fBPwRmfNmOdpNcxOoli9Q?si=eec02ce571f0432b"]
 }
 
-user_profile = sp.me()
-user_product = user_profile.get("product", "free")
+# def authenticate_spotify():
+#     auth_manager = SpotifyOAuth(
+#         client_id=SPOTIFY_CLIENT_ID,
+#         client_secret=SPOTIFY_CLIENT_SECRET,
+#         redirect_uri=SPOTIFY_REDIRECT_URI,
+#         scope=scope,
+#     )
+#     sp = spotipy.Spotify(auth_manager=auth_manager)
+#     return sp
 
-def get_spotify_song(dominant_emotion, SONG_PLACEHOLDER):
+# user_profile = sp.me()
+# user_product = user_profile.get("product", "free")
+
+def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
     if dominant_emotion in emotion_to_songs:
         song_uri = emotion_to_songs[dominant_emotion][0]
         track = sp.track(song_uri)
