@@ -10,8 +10,8 @@ import tempfile
 from collections import Counter
 from datetime import datetime, timedelta
 import tempfile
-from app import get_spotify_song
-from app2 import get_youtube_video
+from sp import get_spotify_song
+from yt import get_youtube_video
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
@@ -19,7 +19,7 @@ from spotipy import Spotify
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
 SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
 SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
-scope = "user-read-playback-state user-modify-playback-state streaming user-read-private"
+scope = "user-read-email streaming user-read-playback-state user-modify-playback-state app-remote-control user-read-private"
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
                                                client_secret=SPOTIFY_CLIENT_SECRET,
