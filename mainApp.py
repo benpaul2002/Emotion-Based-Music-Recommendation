@@ -27,6 +27,7 @@ sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
                                                scope=scope))
 
 LOGIN_URL = "http://localhost:8888/login"
+TOKEN_URL = "http://localhost:8888/token"
 
 def authenticate_spotify():
     if "spotify" not in st.session_state:
@@ -36,9 +37,8 @@ def authenticate_spotify():
     if st.session_state.spotify:
         st.success("You are already authenticated!")
         return st.session_state.spotify
-
-    # Display login button
-    # st.markdown(f"[Log in to Spotify]({LOGIN_URL})")
+    
+    st.write("Refresh the page if you have already logged in.")
 
     st.markdown(
         f"""
@@ -128,10 +128,20 @@ platform_choice = st.sidebar.radio(
 
 if platform_choice=="Spotify":
     if "spotify" not in st.session_state or st.session_state.spotify is None:
+        response = requests.get(TOKEN_URL)
+        token_data = response.json()
+        if "access_token" in token_data:
+            access_token = token_data["access_token"]
+            st.session_state.spotify = Spotify(auth=access_token)
+            
+            # Fetch and display user information
+            user_profile = st.session_state.spotify.me()
+            st.success(f"Welcome, {user_profile['display_name']}!")
+        else:
         # st.write("Log in to Spotify to get personalized song recommendations.")
-        spotify_client = authenticate_spotify()
-        if not spotify_client:
-            st.stop()
+            spotify_client = authenticate_spotify()
+            if not spotify_client:
+                st.stop()
 
 if st.session_state.spotify:
     try:
@@ -184,7 +194,6 @@ def run_main_app():
 
     if cap:
         last_emotion_time = time.time()
-        current_emotion = None
 
         while cap.isOpened():
             ret, frame = cap.read()
@@ -203,13 +212,20 @@ def run_main_app():
 
                 if emotions:
                     emotion, score = emotions
+                    if(emotion is None):
+                        st.write("Could not detect any emotions.")
+                        continue
                     emotion_history.append((emotion, datetime.now()))
                     st.write(f"Detected emotion: **{emotion.capitalize()}** (confidence: {score * 100:.2f}%)")
+                    # one_minute_ago = datetime.now() - timedelta(minutes=1)
+                    # emotion_history = [(e, t) for e, t in emotion_history if t > one_minute_ago]
 
-                    one_minute_ago = datetime.now() - timedelta(minutes=1)
-                    emotion_history = [(e, t) for e, t in emotion_history if t > one_minute_ago]
-
-                    dominant_emotion = get_dominant_emotion(emotion_history)
+                    dominant_emotion = last_dominant_emotion
+                    # if datetime.now() - emotion_history[0][1] > timedelta(minutes=1):
+                    if datetime.now() - emotion_history[0][1] > timedelta(seconds=10):
+                        dominant_emotion = get_dominant_emotion(emotion_history)
+                        if dominant_emotion:
+                            emotion_history = []
                     
                     if dominant_emotion != last_dominant_emotion:
                         last_dominant_emotion = dominant_emotion
