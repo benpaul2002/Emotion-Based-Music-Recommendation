@@ -23,6 +23,29 @@ emotion_to_songs = {
     "disgust": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"]
 }
 
+def search_songs(sp, query, limit=10):
+    if not query.strip():
+        return []  # Return empty list for empty input
+
+    # Perform the search
+    results = sp.search(q=query, type="track", limit=limit)
+    tracks = results.get("tracks", {}).get("items", [])
+
+    # Extract relevant details for each track
+    song_results = []
+    for track in tracks:
+        song_info = {
+            "name": track["name"],
+            "artists": ", ".join(artist["name"] for artist in track["artists"]),
+            "uri": track["uri"],
+            "album": track["album"]["name"],
+            "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None
+        }
+        song_results.append(song_info)
+
+    return song_results
+
+
 def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER):
     if dominant_emotion in emotion_to_songs:
         song_uri = emotion_to_songs[dominant_emotion][0]
