@@ -28,9 +28,10 @@ def fetch_song_metadata(sp, song_name):
     }
     return metadata
 
-def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
-    song_uri = song_metadata["uri"]
-    album_art = song_metadata["album_art"]
+def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
+    first_song = song_metadata_list[0]
+    song_uri = first_song["uri"]
+    album_art = first_song["album_art"]
     track = sp.track(song_uri)
     song_name = track['name']
     artist_names = ', '.join(artist['name'] for artist in track['artists'])
@@ -53,7 +54,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
         SONG_PLACEHOLDER.markdown("**Playing in-app...**")
         html_content = f"""
             <div style="width: 100%; max-width: 500px; margin: 20px auto; padding: 20px; border-radius: 10px; background-color: #222; color: white; text-align: center; font-family: Arial, sans-serif;">
-                <h3 style="margin-bottom: 20px;">{song_name} - {artist_names}</h3>
+                <h3 id="trackInfo" style="margin-bottom: 20px;">{song_name} - {artist_names}</h3>
 
                 <div id="coverArtContainer" style="width: 100%; height: 250px; background-color: #333; border-radius: 10px; margin-bottom: 20px;">
                     <img id="coverArt" src="{album_art}" alt="Track Cover Art" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
@@ -75,14 +76,16 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
             <script src="https://sdk.scdn.co/spotify-player.js"></script>
             <script>
                 window.onSpotifyWebPlaybackSDKReady = () => {{
-                    const token = '{token}';  // Ensure this token is valid
-                    const songUri = '{song_uri}';  // Replace with the actual song URI
+                    const token = '{token}';
+                    const songUris = {[song["uri"] for song in song_metadata_list]};
                     const token_str = "Bearer " + token;
                     const duration = {duration_ms};
                     let playTimer = null;
                     let startTime = null;
                     let isPaused = false;
                     let remainingTime = duration;
+                    let currentTrackIndex = 0;
+                    let spotifyDeviceId = null;
 
                     const player = new Spotify.Player({{
                         name: 'Streamlit Music Player',
@@ -90,11 +93,20 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
                         volume: 0.5
                     }});
 
+                    player.addListener('player_state_changed', state => {{
+                        if (state) {{
+                            const currentTrack = state.track_window.current_track;
+                            const trackInfo = document.getElementById('trackInfo');
+                            const coverArt = document.getElementById('coverArt');
+                            trackInfo.innerHTML = `${{currentTrack.name}} - ${{currentTrack.artists.map(artist => artist.name).join(', ')}}`;
+                            coverArt.src = currentTrack.album.images[0].url;
+                        }}
+                    }});
+
                     function startPlaybackTimer() {{
                         if (playTimer) clearTimeout(playTimer);
                         startTime = Date.now();
-                        playTimer = setTimeout(() => {{
-                            document.getElementById('playbackStatus').innerHTML = 'Track finished playing';
+                        playTimer = setTimeout(() => {{ 
                             document.getElementById('playPauseButton').innerHTML = 'Play';
                         }}, remainingTime);
                     }}
@@ -108,14 +120,25 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
 
                     player.addListener('ready', ({{ device_id }}) => {{
                         console.log('Spotify Player ready with Device ID:', device_id);
+                        spotifyDeviceId = device_id;
 
+                        // Play the first track
+                        playTrack(device_id, songUris[currentTrackIndex]);
+
+                        // Add the rest of the tracks to the queue
+                        for (let i = 1; i < songUris.length; i++) {{
+                            addToQueue(device_id, songUris[i]);
+                        }}
+                    }});
+
+                    function playTrack(device_id, uri) {{
                         fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device_id, {{
                             method: 'PUT',
                             headers: {{
                                 'Authorization': token_str,
                                 'Content-Type': 'application/json',
                             }},
-                            body: JSON.stringify({{ uris: [songUri] }})
+                            body: JSON.stringify({{ uris: [uri] }})
                         }})
                         .then(response => {{
                             if (response.ok) {{
@@ -124,15 +147,22 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
                             }}
                         }})
                         .catch(error => console.error('Error while playing track:', error));
-                    }});
+                    }}
 
-                    player.addListener('not_ready', ({{ device_id }}) => {{
-                        console.warn('Spotify Player device ID has gone offline:', device_id);
-                    }});
-
-                    player.addListener('playback_error', ({{ message }}) => {{
-                        console.error('Spotify Player Playback Error:', message);
-                    }});
+                    function addToQueue(device_id, uri) {{
+                        fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri) + '&device_id=' + device_id, {{
+                            method: 'POST',
+                            headers: {{
+                                'Authorization': token_str,
+                            }}
+                        }})
+                        .then(response => {{
+                            if (response.ok) {{
+                                console.log('Track added to queue');
+                            }}
+                        }})
+                        .catch(error => console.error('Error while adding track to queue:', error));
+                    }}
 
                     player.connect().then(success => {{
                         if (success) {{

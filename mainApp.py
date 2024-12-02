@@ -362,11 +362,15 @@ def show_notification(emotion, app_url):
 
 def handle_media_playback(platform_choice, spotify, user_product, dominant_emotion, song_placeholder, video_placeholder):
     if platform_choice == "Spotify":
-        song_metadata = st.session_state.song_metadata[dominant_emotion][0]
+        song_metadata = st.session_state.song_metadata[dominant_emotion]
         get_spotify_song(spotify, user_product, song_placeholder, song_metadata)
     elif platform_choice == "YouTube":
         song_name = st.session_state.song_metadata[dominant_emotion][0]['title']
-        get_youtube_video(video_placeholder, song_name)
+        artist_name = st.session_state.song_metadata[dominant_emotion][0]['artist']
+        song_details_list = []
+        for song in st.session_state.song_metadata[dominant_emotion]:
+            song_details_list.append((song['title'], song['artist']))
+        get_youtube_video(video_placeholder, song_details_list)
 
 def process_video_feed(cap, frame_window, detector, song_placeholder, video_placeholder):
     last_emotion_time = time.time()
