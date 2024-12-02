@@ -196,10 +196,10 @@ def setup_ui_and_auth():
     
     setup_notifications()
 
-    main_container = st.container()
-    with main_container:
-        st.subheader("Explore Songs by Emotion")
-        
+    # songs_container = st.container()
+    # with songs_container:
+    #     st.subheader("Explore Songs by Emotion")
+    with st.expander("Explore/Add Songs by Emotion", expanded=True):
         selected_emotion = st.selectbox(
             "Choose an emotion",
             options=list(emotion_to_songs.keys()),
@@ -232,17 +232,39 @@ def setup_ui_and_auth():
             carousel_style = {
                 "background-color": "#27272f",
                 "border-radius": "8px",
-                "padding": "20px"
+                "padding": "20px",
             }
 
             st_ant_carousel(
                 carousel_items,
-                height=400,
+                height=250,
                 adaptiveHeight=True,
                 autoplay=True,
                 easing="ease-in-out",
                 carousel_style=carousel_style
             )
+        
+        st.divider()
+    
+        with st.form("search_form"):
+            col1, col2 = st.columns([4,1])
+            with col1:
+                search_query = st.text_input("Search for a song", placeholder="Enter song name or artist...", label_visibility="collapsed")
+            with col2:
+                search_button = st.form_submit_button("Search", type="primary")
+
+        if search_button and search_query:
+            results = st.session_state.spotify.search(search_query, type='track', limit=5)
+            if results['tracks']['items']:
+                st.write("Search Results:")
+                for track in results['tracks']['items']:
+                    col1, col2, col3 = st.columns([1,3,1])
+                    with col1:
+                        st.image(track['album']['images'][0]['url'], width=100)
+                    with col2:
+                        st.write(f"**{track['name']}** - {track['artists'][0]['name']}")
+                    with col3:
+                        st.button("Add to Playlist", key=track['id'])
 
 
 def process_emotion(frame, detector):
