@@ -294,7 +294,8 @@ def setup_ui_and_auth():
         with st.form("search_form"):
             col1, col2 = st.columns([4,1])
             with col1:
-                search_query = st.text_input("Search for a song", placeholder="Enter song name or artist...", label_visibility="collapsed")
+                placeholder_str = f"Search for a song to add to {selected_emotion} playlist"
+                search_query = st.text_input("Search for a song", placeholder=placeholder_str, label_visibility="collapsed")
             with col2:
                 search_button = st.form_submit_button("Search", type="primary")
             if search_button and search_query:
@@ -361,8 +362,8 @@ def show_notification(emotion, app_url):
 
 def handle_media_playback(platform_choice, spotify, user_product, dominant_emotion, song_placeholder, video_placeholder):
     if platform_choice == "Spotify":
-        song_uri = st.session_state.song_metadata[dominant_emotion][0]['uri']
-        get_spotify_song(spotify, user_product, song_placeholder, song_uri)
+        song_metadata = st.session_state.song_metadata[dominant_emotion][0]
+        get_spotify_song(spotify, user_product, song_placeholder, song_metadata)
     elif platform_choice == "YouTube":
         song_name = st.session_state.song_metadata[dominant_emotion][0]['title']
         get_youtube_video(video_placeholder, song_name)

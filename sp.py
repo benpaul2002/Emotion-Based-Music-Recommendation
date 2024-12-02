@@ -28,15 +28,18 @@ def fetch_song_metadata(sp, song_name):
     }
     return metadata
 
-def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
+def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata):
+    song_uri = song_metadata["uri"]
+    album_art = song_metadata["album_art"]
     track = sp.track(song_uri)
     song_name = track['name']
     artist_names = ', '.join(artist['name'] for artist in track['artists'])
+    duration_ms = track['duration_ms']
 
     SONG_PLACEHOLDER.empty()
     SONG_PLACEHOLDER.markdown(
         f"""
-        ### 🎵 **{song_name}** by {artist_names}
+        **{song_name}** by {artist_names}
         [Play on Spotify Web Player]({song_uri})
         """
     )
@@ -50,11 +53,13 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
         SONG_PLACEHOLDER.markdown("**Playing in-app...**")
         html_content = f"""
             <div style="width: 100%; max-width: 500px; margin: 20px auto; padding: 20px; border-radius: 10px; background-color: #222; color: white; text-align: center; font-family: Arial, sans-serif;">
-                <h3 style="margin-bottom: 20px;">Spotify Player</h3>
+                <h3 style="margin-bottom: 20px;">{song_name} - {artist_names}</h3>
 
                 <div id="coverArtContainer" style="width: 100%; height: 250px; background-color: #333; border-radius: 10px; margin-bottom: 20px;">
-                    <img id="coverArt" src="" alt="Track Cover Art" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
+                    <img id="coverArt" src="{album_art}" alt="Track Cover Art" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px;">
                 </div>
+
+                <div id="playbackStatus" style="margin: 10px 0; color: #1db954; font-weight: bold;"></div>
 
                 <div style="display: flex; justify-content: space-evenly; margin-top: 20px;">
                     <button id="playPauseButton" style="background-color: #1db954; border: none; color: white; padding: 15px 30px; font-size: 16px; border-radius: 5px; cursor: pointer;">Pause</button>
@@ -73,12 +78,33 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
                     const token = '{token}';  // Ensure this token is valid
                     const songUri = '{song_uri}';  // Replace with the actual song URI
                     const token_str = "Bearer " + token;
+                    const duration = {duration_ms};
+                    let playTimer = null;
+                    let startTime = null;
+                    let isPaused = false;
+                    let remainingTime = duration;
 
                     const player = new Spotify.Player({{
                         name: 'Streamlit Music Player',
                         getOAuthToken: cb => cb(token),
                         volume: 0.5
                     }});
+
+                    function startPlaybackTimer() {{
+                        if (playTimer) clearTimeout(playTimer);
+                        startTime = Date.now();
+                        playTimer = setTimeout(() => {{
+                            document.getElementById('playbackStatus').innerHTML = 'Track finished playing';
+                            document.getElementById('playPauseButton').innerHTML = 'Play';
+                        }}, remainingTime);
+                    }}
+
+                    function pausePlaybackTimer() {{
+                        if (playTimer) {{
+                            clearTimeout(playTimer);
+                            remainingTime = remainingTime - (Date.now() - startTime);
+                        }}
+                    }}
 
                     player.addListener('ready', ({{ device_id }}) => {{
                         console.log('Spotify Player ready with Device ID:', device_id);
@@ -94,42 +120,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
                         .then(response => {{
                             if (response.ok) {{
                                 console.log('Track is now playing!');
-                                fetch('https://api.spotify.com/v1/me/player/currently-playing', {{
-                                    headers: {{
-                                        'Authorization': token_str,
-                                    }}
-                                }})
-                                .then(response => {{
-                                    if (response.status === 204) {{
-                                        console.log('No track is currently playing.');
-                                        document.getElementById('coverArt').src = 'https://via.placeholder.com/500x250.png?text=No+Track+Playing';
-                                        return;  // Exit early since there is no track info
-                                    }}
-
-                                    const contentType = response.headers.get('Content-Type');
-                                    if (!contentType || !contentType.includes('application/json')) {{
-                                        console.error('Response is not in JSON format');
-                                        return Promise.reject('Response is not JSON');
-                                    }}
-
-                                    return response.json();
-                                }})
-                                .then(data => {{
-                                    if (data && data.item && data.item.album && data.item.album.images[0]) {{
-                                        const coverArtUrl = data.item.album.images[0].url;  // Get the largest cover image
-                                        document.getElementById('coverArt').src = coverArtUrl;  // Set the cover art source
-                                    }} else {{
-                                        console.warn('No album image found');
-                                        document.getElementById('coverArt').src = 'https://via.placeholder.com/500x250.png?text=No+Album+Image';
-                                    }}
-                                }})
-                                .catch(error => {{
-                                    console.error('Error fetching track details:', error);
-                                    document.getElementById('coverArt').src = 'https://via.placeholder.com/500x250.png?text=Error+Fetching+Track';
-                                }});
-
-                            }} else {{
-                                console.error('Failed to play track:', response.statusText);
+                                startPlaybackTimer();
                             }}
                         }})
                         .catch(error => console.error('Error while playing track:', error));
@@ -153,12 +144,18 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
 
                     document.getElementById('playPauseButton').addEventListener('click', () => {{
                         player.togglePlay().then(() => {{
-                            console.log('Toggled play/pause');
                             const button = document.getElementById('playPauseButton');
                             if (button.innerHTML === 'Play') {{
                                 button.innerHTML = 'Pause';
+                                document.getElementById('playbackStatus').innerHTML = '';
+                                if (isPaused) {{
+                                    startPlaybackTimer();
+                                }}
+                                isPaused = false;
                             }} else {{
                                 button.innerHTML = 'Play';
+                                pausePlaybackTimer();
+                                isPaused = true;
                             }}
                         }});
                     }});
@@ -166,6 +163,8 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
                     document.getElementById('skipButton').addEventListener('click', () => {{
                         player.nextTrack().then(() => {{
                             console.log('Skipped to next track');
+                            document.getElementById('playbackStatus').innerHTML = '';
+                            if (playTimer) clearTimeout(playTimer);
                         }});
                     }});
 
