@@ -5,7 +5,6 @@ import os
 import time
 import sqlite3
 
-# Spotify credentials
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
 SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
 SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
@@ -14,7 +13,6 @@ CACHE_PATH = ".spotify_cache"
 
 app = Flask(__name__)
 
-# Initialize SpotifyOAuth
 auth_manager = SpotifyOAuth(
     client_id=SPOTIFY_CLIENT_ID,
     client_secret=SPOTIFY_CLIENT_SECRET,
@@ -25,25 +23,21 @@ auth_manager = SpotifyOAuth(
 
 @app.route("/login")
 def login():
-    # Redirect user to Spotify login
     auth_url = auth_manager.get_authorize_url()
     return redirect(auth_url)
 
 @app.route("/callback")
 def callback():
-    # Extract the authorization code
     code = request.args.get("code")
     token_info = auth_manager.get_access_token(code)
     save_token(token_info)
     return "Authentication successful! You can close this tab."
 
 def save_token(token_info):
-    # Save token info (access and refresh tokens) to a file
     with open("access_token.txt", "w") as f:
         f.write(token_info["access_token"])
 
 def get_valid_token():
-    # Check if token exists and is valid; refresh if necessary
     token_info = auth_manager.get_cached_token()
     if not token_info or auth_manager.is_token_expired(token_info):
         token_info = auth_manager.refresh_access_token(token_info["refresh_token"])
@@ -52,7 +46,6 @@ def get_valid_token():
 
 @app.route("/token")
 def token():
-    # Return a valid access token
     try:
         access_token = get_valid_token()
         return {"access_token": access_token}

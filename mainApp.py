@@ -364,7 +364,8 @@ def handle_media_playback(platform_choice, spotify, user_product, dominant_emoti
         song_uri = st.session_state.song_metadata[dominant_emotion][0]['uri']
         get_spotify_song(spotify, user_product, song_placeholder, song_uri)
     elif platform_choice == "YouTube":
-        get_youtube_video(dominant_emotion, video_placeholder)
+        song_name = st.session_state.song_metadata[dominant_emotion][0]['title']
+        get_youtube_video(video_placeholder, song_name)
 
 def process_video_feed(cap, frame_window, detector, song_placeholder, video_placeholder):
     last_emotion_time = time.time()
