@@ -3,6 +3,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
+import sqlite3
 
 # Spotify credentials
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
@@ -57,6 +58,29 @@ def token():
         return {"access_token": access_token}
     except Exception as e:
         return {"error": str(e)}
+    
+def delete_song_from_emotion(uri, emotion):
+    conn = sqlite3.connect('music_emotions.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM songs WHERE uri = ? AND emotion = ?', (uri, emotion))
+    conn.commit()
+    conn.close()
+
+@app.route("/delete_song", methods=["POST"])
+def delete_song():
+    try:
+        uri = request.form.get("uri")
+        emotion = request.form.get("emotion")
+        delete_song_from_emotion(uri, emotion)
+        
+        return """
+            <div style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; 
+                        margin-top: 10px; border-radius: 4px;">
+                Song deleted successfully!
+            </div>
+        """
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 if __name__ == "__main__":
     app.run(port=8888)

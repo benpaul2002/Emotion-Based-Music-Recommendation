@@ -120,8 +120,6 @@ def authenticate_spotify():
 def init_db():
     conn = sqlite3.connect('music_emotions.db')
     c = conn.cursor()
-    
-    # Update the table schema to include uri and album fields
     c.execute('''
         CREATE TABLE IF NOT EXISTS songs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,8 +138,6 @@ def init_db():
 def add_song(uri, title, artist, album, album_art, emotion):
     conn = sqlite3.connect('music_emotions.db')
     c = conn.cursor()
-    
-    # Insert metadata with the new schema
     c.execute('''
         INSERT INTO songs (uri, title, artist, album, album_art, emotion)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -167,13 +163,6 @@ def get_songs_by_emotion(emotion):
         }
         for song in songs
     ]
-
-def delete_song_from_emotion(uri, emotion):
-    conn = sqlite3.connect('music_emotions.db')
-    c = conn.cursor()
-    c.execute('DELETE FROM songs WHERE uri = ? AND emotion = ?', (uri, emotion))
-    conn.commit()
-    conn.close()
 
 def get_dominant_emotion(emotions_list):
     if not emotions_list:
@@ -263,9 +252,23 @@ def setup_ui_and_auth():
                             "textAlign": "left"
                         },
                         "content": f"""
-                            <div style="display: flex; align-items: center; gap: 20px;">
-                                <img src="{song['album_art']}" style="width: 200px; height: 200px; border: 2px solid #595963;" />
-                                <p style="margin: 0;">{song['title']} - {song['artist']}</p>
+                            <div style="display: flex; align-items: center; gap: 20px; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 20px;">
+                                    <img src="{song['album_art']}" style="width: 200px; height: 200px; border: 2px solid #595963;" />
+                                    <p style="margin: 0;">{song['title']} - {song['artist']}</p>
+                                </div>
+                                <form action="http://localhost:8888/delete_song" method="post" style="margin: 0;">
+                                    <input type="hidden" name="uri" value="{song['uri']}" />
+                                    <input type="hidden" name="emotion" value="{selected_emotion}" />
+                                    <button 
+                                        type="submit" 
+                                        style="background: none; border: none; cursor: pointer; padding: 5px;"
+                                        onclick="window.parent.location.reload();">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#FF5252">
+                                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                                        </svg>
+                                    </button>
+                                </form>
                             </div>
                         """
                     }
