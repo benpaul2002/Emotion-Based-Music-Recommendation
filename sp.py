@@ -13,62 +13,26 @@ from collections import Counter
 from datetime import datetime, timedelta
 from streamlit.components.v1 import html
 
-emotion_to_songs = {
-    "happy": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "sad": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "angry": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "surprise": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "neutral": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "fear": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"],
-    "disgust": ["spotify:track:1ltBhiP2wDvuxkkAfvZvkJ"]
-}
-
-# def search_songs(sp, query, limit=10):
-#     if not query.strip():
-#         return []  # Return empty list for empty input
-
-#     # Perform the search
-#     results = sp.search(q=query, type="track", limit=limit)
-#     tracks = results.get("tracks", {}).get("items", [])
-
-#     # Extract relevant details for each track
-#     song_results = []
-#     for track in tracks:
-#         song_info = {
-#             "name": track["name"],
-#             "artists": ", ".join(artist["name"] for artist in track["artists"]),
-#             "uri": track["uri"],
-#             "album": track["album"]["name"],
-#             "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None
-#         }
-#         song_results.append(song_info)
-
-#     return song_results
-
 def fetch_song_metadata(sp, song_name):
     results = sp.search(q=song_name, type='track', limit=1)
     if not results['tracks']['items']:
-        return None  # No results found
+        return None
     
-    # Extract metadata
     track = results['tracks']['items'][0]
     metadata = {
         "uri": track["uri"],
         "title": track["name"],
         "artist": ", ".join([artist["name"] for artist in track["artists"]]),
         "album": track["album"]["name"],
-        "album_art": track["album"]["images"][0]["url"],  # Largest album art
+        "album_art": track["album"]["images"][0]["url"],
     }
     return metadata
 
-def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_uri):
-    # if dominant_emotion in emotion_to_songs:
-    # song_uri = emotion_to_songs[dominant_emotion][0]
+def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_uri):
     track = sp.track(song_uri)
     song_name = track['name']
     artist_names = ', '.join(artist['name'] for artist in track['artists'])
 
-    # Clear previous song and display the new one
     SONG_PLACEHOLDER.empty()
     SONG_PLACEHOLDER.markdown(
         f"""
@@ -78,18 +42,12 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
     )
 
     if user_product == "premium":
-        # Display in-app playback interface
         try:
             with open("access_token.txt", "r") as f:
                 token = f.read().strip()
         except FileNotFoundError:
             st.warning("Log in to Spotify to proceed.")
         SONG_PLACEHOLDER.markdown("**Playing in-app...**")
-        # Define your HTML and JS code
-
-        # The HTML and JavaScript content
-
-        # The HTML and JavaScript content with enhanced styling
         html_content = f"""
             <div style="width: 100%; max-width: 500px; margin: 20px auto; padding: 20px; border-radius: 10px; background-color: #222; color: white; text-align: center; font-family: Arial, sans-serif;">
                 <h3 style="margin-bottom: 20px;">Spotify Player</h3>
@@ -125,7 +83,6 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                     player.addListener('ready', ({{ device_id }}) => {{
                         console.log('Spotify Player ready with Device ID:', device_id);
 
-                        // Start playing the track
                         fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device_id, {{
                             method: 'PUT',
                             headers: {{
@@ -137,8 +94,6 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                         .then(response => {{
                             if (response.ok) {{
                                 console.log('Track is now playing!');
-
-                                // Now fetch the current track details (including cover art) after starting playback
                                 fetch('https://api.spotify.com/v1/me/player/currently-playing', {{
                                     headers: {{
                                         'Authorization': token_str,
@@ -151,7 +106,6 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                                         return;  // Exit early since there is no track info
                                     }}
 
-                                    // Check if the response is in JSON format
                                     const contentType = response.headers.get('Content-Type');
                                     if (!contentType || !contentType.includes('application/json')) {{
                                         console.error('Response is not in JSON format');
@@ -161,19 +115,16 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                                     return response.json();
                                 }})
                                 .then(data => {{
-                                    // Check if data is valid and contains the album cover image
                                     if (data && data.item && data.item.album && data.item.album.images[0]) {{
                                         const coverArtUrl = data.item.album.images[0].url;  // Get the largest cover image
                                         document.getElementById('coverArt').src = coverArtUrl;  // Set the cover art source
                                     }} else {{
                                         console.warn('No album image found');
-                                        // Set a fallback cover art image if not found
                                         document.getElementById('coverArt').src = 'https://via.placeholder.com/500x250.png?text=No+Album+Image';
                                     }}
                                 }})
                                 .catch(error => {{
                                     console.error('Error fetching track details:', error);
-                                    // Set a fallback cover art image if an error occurs
                                     document.getElementById('coverArt').src = 'https://via.placeholder.com/500x250.png?text=Error+Fetching+Track';
                                 }});
 
@@ -200,7 +151,6 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                         }}
                     }});
 
-                    // Play/Pause button
                     document.getElementById('playPauseButton').addEventListener('click', () => {{
                         player.togglePlay().then(() => {{
                             console.log('Toggled play/pause');
@@ -213,14 +163,12 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
                         }});
                     }});
 
-                    // Skip button
                     document.getElementById('skipButton').addEventListener('click', () => {{
                         player.nextTrack().then(() => {{
                             console.log('Skipped to next track');
                         }});
                     }});
 
-                    // Volume control
                     document.getElementById('volume').addEventListener('input', (event) => {{
                         const volume = event.target.value;
                         player.setVolume(volume).then(() => {{
@@ -231,10 +179,7 @@ def get_spotify_song(sp, user_product, dominant_emotion, SONG_PLACEHOLDER, song_
             </script>
         """
 
-        # Use Streamlit's components to embed the HTML and JS
-        html(html_content, height=600)  # Adjust height as necessary
+        html(html_content, height=600)
 
     else:
         SONG_PLACEHOLDER.markdown("Upgrade to Spotify Premium for in-app playback.")
-    # else:
-    #     SONG_PLACEHOLDER.markdown("No song mapping found for this emotion.")

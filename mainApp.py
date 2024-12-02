@@ -16,6 +16,7 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
 from st_ant_carousel import st_ant_carousel
+import sqlite3
 
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
 SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
@@ -34,7 +35,6 @@ def authenticate_spotify():
     if "spotify" not in st.session_state:
         st.session_state.spotify = None
 
-    # Check if Spotify session exists
     if st.session_state.spotify:
         st.success("You are already authenticated!")
         return st.session_state.spotify
@@ -104,13 +104,11 @@ def authenticate_spotify():
         unsafe_allow_html=True
     )
 
-    # Check for access token file
     try:
         with open("access_token.txt", "r") as f:
             access_token = f.read().strip()
         st.session_state.spotify = Spotify(auth=access_token)
         
-        # Fetch and display user information
         user_profile = st.session_state.spotify.me()
         st.success(f"Welcome, {user_profile['display_name']}!")
         return st.session_state.spotify
@@ -119,15 +117,63 @@ def authenticate_spotify():
 
     return None
 
-emotion_to_songs = {
-    "happy": ["Serenity Painted Death", "Harvest Opeth", "Seize the Day", "Zagreus"],
-    "sad": ["Serenity Painted Death"],
-    "angry": ["Serenity Painted Death"],
-    "surprise": ["Serenity Painted Death"],
-    "neutral": ["Serenity Painted Death"],
-    "fear": ["Serenity Painted Death"],
-    "disgust": ["Serenity Painted Death"]
-}
+def init_db():
+    conn = sqlite3.connect('music_emotions.db')
+    c = conn.cursor()
+    
+    # Update the table schema to include uri and album fields
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS songs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uri TEXT NOT NULL,
+            title TEXT NOT NULL,
+            artist TEXT NOT NULL,
+            album TEXT NOT NULL,
+            album_art TEXT,
+            emotion TEXT NOT NULL
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+def add_song(uri, title, artist, album, album_art, emotion):
+    conn = sqlite3.connect('music_emotions.db')
+    c = conn.cursor()
+    
+    # Insert metadata with the new schema
+    c.execute('''
+        INSERT INTO songs (uri, title, artist, album, album_art, emotion)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (uri, title, artist, album, album_art, emotion))
+    
+    conn.commit()
+    conn.close()
+
+def get_songs_by_emotion(emotion):
+    conn = sqlite3.connect('music_emotions.db')
+    c = conn.cursor()
+    c.execute('SELECT * FROM songs WHERE emotion = ?', (emotion,))
+    songs = c.fetchall()
+    conn.close()
+    
+    return [
+        {
+            'uri': song[1],
+            'title': song[2],
+            'artist': song[3],
+            'album': song[4],
+            'album_art': song[5]
+        }
+        for song in songs
+    ]
+
+def delete_song_from_emotion(uri, emotion):
+    conn = sqlite3.connect('music_emotions.db')
+    c = conn.cursor()
+    c.execute('DELETE FROM songs WHERE uri = ? AND emotion = ?', (uri, emotion))
+    conn.commit()
+    conn.close()
 
 def get_dominant_emotion(emotions_list):
     if not emotions_list:
@@ -196,53 +242,49 @@ def setup_ui_and_auth():
     
     setup_notifications()
 
-    # songs_container = st.container()
-    # with songs_container:
-    #     st.subheader("Explore Songs by Emotion")
     with st.expander("Explore/Add Songs by Emotion", expanded=True):
         selected_emotion = st.selectbox(
             "Choose an emotion",
-            options=list(emotion_to_songs.keys()),
+            options=list(st.session_state.song_metadata.keys()),
             index=0,
         )
         
         if selected_emotion:
-            songs = []
-            for song_name in emotion_to_songs[selected_emotion]:
-                metadata = fetch_song_metadata(st.session_state.spotify, song_name)
-                songs.append(metadata)
-               
-            carousel_items = []
-            for song in songs:
-                item = {
-                    "style": {
-                        "color": "#fff",
-                        "fontSize": "24px",
-                        "textAlign": "left"
-                    },
-                    "content": f"""
-                        <div style="display: flex; align-items: center; gap: 20px;">
-                            <img src="{song['album_art']}" style="width: 200px; height: 200px; border: 2px solid #595963;" />
-                            <p style="margin: 0;">{song['title']} - {song['artist']}</p>
-                        </div>
-                    """
+            if not st.session_state.song_metadata[selected_emotion]:
+                st.info("No songs found for this emotion. Try searching for songs to add!")
+            else:
+                songs = st.session_state.song_metadata[selected_emotion]
+                carousel_items = []
+                for song in songs:
+                    item = {
+                        "style": {
+                            "color": "#fff",
+                            "fontSize": "24px",
+                            "textAlign": "left"
+                        },
+                        "content": f"""
+                            <div style="display: flex; align-items: center; gap: 20px;">
+                                <img src="{song['album_art']}" style="width: 200px; height: 200px; border: 2px solid #595963;" />
+                                <p style="margin: 0;">{song['title']} - {song['artist']}</p>
+                            </div>
+                        """
+                    }
+                    carousel_items.append(item)
+                    
+                carousel_style = {
+                    "background-color": "#27272f",
+                    "border-radius": "8px",
+                    "padding": "20px",
                 }
-                carousel_items.append(item)
 
-            carousel_style = {
-                "background-color": "#27272f",
-                "border-radius": "8px",
-                "padding": "20px",
-            }
-
-            st_ant_carousel(
-                carousel_items,
-                height=250,
-                adaptiveHeight=True,
-                autoplay=True,
-                easing="ease-in-out",
-                carousel_style=carousel_style
-            )
+                st_ant_carousel(
+                    carousel_items,
+                    height=250,
+                    adaptiveHeight=True,
+                    autoplay=True,
+                    easing="ease-in-out",
+                    carousel_style=carousel_style
+                )
         
         st.divider()
     
@@ -252,9 +294,12 @@ def setup_ui_and_auth():
                 search_query = st.text_input("Search for a song", placeholder="Enter song name or artist...", label_visibility="collapsed")
             with col2:
                 search_button = st.form_submit_button("Search", type="primary")
+            if search_button and search_query:
+                results = st.session_state.spotify.search(search_query, type='track', limit=5)
+                st.session_state.search_results = results
 
-        if search_button and search_query:
-            results = st.session_state.spotify.search(search_query, type='track', limit=5)
+        if "search_results" in st.session_state:
+            results = st.session_state.search_results
             if results['tracks']['items']:
                 st.write("Search Results:")
                 for track in results['tracks']['items']:
@@ -264,7 +309,17 @@ def setup_ui_and_auth():
                     with col2:
                         st.write(f"**{track['name']}** - {track['artists'][0]['name']}")
                     with col3:
-                        st.button("Add to Playlist", key=track['id'])
+                        if st.button("Add to Playlist", key=f"add_{track['id']}"):
+                            add_song(
+                                track['uri'],
+                                track['name'],
+                                track['artists'][0]['name'],
+                                track['album']['name'],
+                                track['album']['images'][0]['url'],
+                                selected_emotion
+                            )
+                            st.success(f"Added to {selected_emotion} playlist!")
+
 
 
 def process_emotion(frame, detector):
@@ -303,8 +358,8 @@ def show_notification(emotion, app_url):
 
 def handle_media_playback(platform_choice, spotify, user_product, dominant_emotion, song_placeholder, video_placeholder):
     if platform_choice == "Spotify":
-        song_uri = emotion_to_songs[dominant_emotion][0]
-        get_spotify_song(spotify, user_product, dominant_emotion, song_placeholder, song_uri)
+        song_uri = st.session_state.song_metadata[dominant_emotion][0]['uri']
+        get_spotify_song(spotify, user_product, song_placeholder, song_uri)
     elif platform_choice == "YouTube":
         get_youtube_video(dominant_emotion, video_placeholder)
 
@@ -354,6 +409,18 @@ def process_video_feed(cap, frame_window, detector, song_placeholder, video_plac
                     )
 
 def run_main_app():
+    if 'db_initialized' not in st.session_state:
+        init_db()
+        st.session_state.db_initialized = True
+
+    if 'song_metadata' not in st.session_state:
+        emotions = ['happy', 'sad', 'angry', 'surprise', 'neutral', 'fear', 'disgust']
+        st.session_state.song_metadata = {}
+
+        for emotion in emotions:
+            st.session_state.song_metadata[emotion] = get_songs_by_emotion(emotion)
+
+
     setup_ui_and_auth()
     
     input_container = st.empty()
@@ -362,7 +429,7 @@ def run_main_app():
     
     with input_container:
         input_type = st.radio("Choose Input Source", ["Webcam", "Upload Video"], index=0)
-    
+
     detector = FER(mtcnn=True)
     cap = None
     
