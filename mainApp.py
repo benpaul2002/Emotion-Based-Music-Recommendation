@@ -15,9 +15,7 @@ from yt import get_youtube_video
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
-from streamlit_carousel import carousel 
-
-import random
+from st_ant_carousel import st_ant_carousel
 
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
 SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
@@ -122,7 +120,7 @@ def authenticate_spotify():
     return None
 
 emotion_to_songs = {
-    "happy": ["Serenity Painted Death", "Harvest Opeth", "Happy"],
+    "happy": ["Serenity Painted Death", "Harvest Opeth", "Seize the Day", "Zagreus"],
     "sad": ["Serenity Painted Death"],
     "angry": ["Serenity Painted Death"],
     "surprise": ["Serenity Painted Death"],
@@ -216,18 +214,34 @@ def setup_ui_and_auth():
                
             carousel_items = []
             for song in songs:
-                carousel_items.append({
-                    "title": song["title"],
-                    "artist": song["artist"],
-                    "album": song["album"],
-                    "link": song["uri"],
-                    "img": song["album_art"],
-                    "text": "Listen on Spotify",
-                })
-            
-            carousel(
-                items=carousel_items,
-                width=300
+                item = {
+                    "style": {
+                        "color": "#fff",
+                        "fontSize": "24px",
+                        "textAlign": "left"
+                    },
+                    "content": f"""
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <img src="{song['album_art']}" style="width: 200px; height: 200px; border: 2px solid #595963;" />
+                            <p style="margin: 0;">{song['title']} - {song['artist']}</p>
+                        </div>
+                    """
+                }
+                carousel_items.append(item)
+
+            carousel_style = {
+                "background-color": "#27272f",
+                "border-radius": "8px",
+                "padding": "20px"
+            }
+
+            st_ant_carousel(
+                carousel_items,
+                height=400,
+                adaptiveHeight=True,
+                autoplay=True,
+                easing="ease-in-out",
+                carousel_style=carousel_style
             )
 
 
