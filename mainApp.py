@@ -361,6 +361,9 @@ def show_notification(emotion, app_url):
     """, height=0)
 
 def handle_media_playback(platform_choice, spotify, user_product, dominant_emotion, song_placeholder, video_placeholder):
+    if not st.session_state.song_metadata[dominant_emotion]:
+        st.warning("No songs found for this emotion. Try adding songs to the playlist.")
+        return
     if platform_choice == "Spotify":
         song_metadata = st.session_state.song_metadata[dominant_emotion]
         get_spotify_song(spotify, user_product, song_placeholder, song_metadata)
