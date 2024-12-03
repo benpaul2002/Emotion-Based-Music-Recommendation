@@ -51,7 +51,8 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                 token = f.read().strip()
         except FileNotFoundError:
             st.warning("Log in to Spotify to proceed.")
-        SONG_PLACEHOLDER.markdown("**Playing in-app...**")
+            return
+        
         html_content = f"""
             <div id="player-container">
                 <div style="width: 100%; max-width: 500px; margin: 20px auto; padding: 20px; border-radius: 10px; background-color: #222; color: white; text-align: center; font-family: Arial, sans-serif;">
@@ -229,7 +230,6 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
             </script>
         """
 
-        # html(html_content, height=600)
         SONG_PLACEHOLDER.empty()
         with SONG_PLACEHOLDER:
             components.html(

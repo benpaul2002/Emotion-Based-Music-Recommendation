@@ -375,7 +375,7 @@ def handle_media_playback(platform_choice, spotify, user_product, dominant_emoti
             song_details_list.append((song['title'], song['artist']))
         get_youtube_video(video_placeholder, song_details_list)
 
-def process_video_feed(cap, frame_window, detector, song_placeholder, video_placeholder):
+def process_video_feed(cap, frame_window, detector, song_placeholder, video_placeholder, emotion_container):
     last_emotion_time = time.time()
     emotion_history = []
     last_dominant_emotion = None
@@ -409,7 +409,8 @@ def process_video_feed(cap, frame_window, detector, song_placeholder, video_plac
                     
                     if st.session_state.notifications_enabled:
                         show_notification(emotion, "http://localhost:8501")
-                    st.write(f"**New Dominant Emotion: {dominant_emotion.capitalize()}**")
+                    # st.write(f"**New Dominant Emotion: {dominant_emotion.capitalize()}**")
+                    emotion_container.markdown(f"**Current Emotion: {dominant_emotion.capitalize()}**")
                     
                     handle_media_playback(
                         st.session_state.platform_choice,
@@ -438,6 +439,7 @@ def run_main_app():
     input_container = st.empty()
     frame_container = st.empty()
     media_container = st.empty()
+    emotion_container = st.empty()
     
     with input_container:
         input_type = st.radio("Choose Input Source", ["Webcam", "Upload Video"], index=0)
@@ -464,7 +466,7 @@ def run_main_app():
     
     if cap:
         try:
-            process_video_feed(cap, FRAME_WINDOW, detector, SONG_PLACEHOLDER, VIDEO_PLACEHOLDER)
+            process_video_feed(cap, FRAME_WINDOW, detector, SONG_PLACEHOLDER, VIDEO_PLACEHOLDER, emotion_container)
         finally:
             cap.release()
 
