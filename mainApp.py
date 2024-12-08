@@ -17,6 +17,7 @@ from spotipy.oauth2 import SpotifyOAuth
 from spotipy import Spotify
 from st_ant_carousel import st_ant_carousel
 import sqlite3
+from streamlit.components.v1 import html
 
 SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
 SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
@@ -323,6 +324,7 @@ def setup_ui_and_auth():
                                 selected_emotion
                             )
                             st.success(f"Added to {selected_emotion} playlist!")
+                            html("<script>window.parent.location.reload();</script>")
 
 
 
@@ -392,31 +394,33 @@ def process_video_feed(cap, frame_window, detector, song_placeholder, video_plac
         current_time = time.time()
         if current_time - last_emotion_time >= 5:
             last_emotion_time = current_time
-            st.write("Analyzing emotion...")
             
             emotion = process_emotion(rgb_frame, detector)
             if emotion:
                 emotion_history.append((emotion, datetime.now()))
                 
                 dominant_emotion = last_dominant_emotion
-                if datetime.now() - emotion_history[0][1] > timedelta(seconds=10):
+                if datetime.now() - emotion_history[0][1] > timedelta(minutes=5):
                     dominant_emotion = get_dominant_emotion(emotion_history)
                     if dominant_emotion:
                         emotion_history = []
+
+                if last_dominant_emotion is None:
+                    dominant_emotion = emotion
                 
                 if dominant_emotion != last_dominant_emotion:
                     last_dominant_emotion = dominant_emotion
                     
                     if st.session_state.notifications_enabled:
-                        show_notification(emotion, "http://localhost:8501")
-                    # st.write(f"**New Dominant Emotion: {dominant_emotion.capitalize()}**")
-                    emotion_container.markdown(f"**Current Emotion: {dominant_emotion.capitalize()}**")
+                        show_notification(dominant_emotion, "http://localhost:8501")
+                    emotion_container.markdown(f"**Current dominant emotion: {dominant_emotion.capitalize()}**")
                     
                     handle_media_playback(
                         st.session_state.platform_choice,
                         st.session_state.spotify,
                         st.session_state.user_product,
-                        dominant_emotion,
+                        # dominant_emotion,
+                        "happy",
                         song_placeholder,
                         video_placeholder
                     )
@@ -458,6 +462,10 @@ def run_main_app():
             tfile.write(uploaded_video.read())
             cap = cv2.VideoCapture(tfile.name)
     
+    # run = st.checkbox("Start Webcam")
+    # if run:
+    #     cap = cv2.VideoCapture(0)
+
     FRAME_WINDOW = frame_container.image([])
     
     with media_container:

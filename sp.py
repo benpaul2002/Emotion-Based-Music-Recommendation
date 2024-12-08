@@ -90,6 +90,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                         let remainingTime = duration;
                         let currentTrackIndex = 0;
                         let spotifyDeviceId = null;
+                        let trackWasStarted = false;
 
                         const player = new Spotify.Player({{
                             name: 'Streamlit Music Player',
@@ -104,6 +105,20 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                                 const coverArt = document.getElementById('coverArt');
                                 trackInfo.innerHTML = `${{currentTrack.name}} - ${{currentTrack.artists.map(artist => artist.name).join(', ')}}`;
                                 coverArt.src = currentTrack.album.images[0].url;
+                                const isPaused = state.paused;
+                                const playbackPosition = state.position;
+                                
+                                if (isPaused && playbackPosition === 0 && trackWasStarted) {{
+                                    playTrack(spotifyDeviceId, songUris[0]);
+                                    for (let i = 1; i < songUris.length; i++) {{
+                                        addToQueue(spotifyDeviceId, songUris[i]);
+                                    }}
+                                    trackWasStarted = false;
+                                }}
+                                
+                                if (!trackWasStarted && playbackPosition > 0 && !isPaused) {{
+                                    trackWasStarted = true;
+                                }}
                             }}
                         }});
 
@@ -125,11 +140,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                         player.addListener('ready', ({{ device_id }}) => {{
                             console.log('Spotify Player ready with Device ID:', device_id);
                             spotifyDeviceId = device_id;
-
-                            // Play the first track
                             playTrack(device_id, songUris[currentTrackIndex]);
-
-                            // Add the rest of the tracks to the queue
                             for (let i = 1; i < songUris.length; i++) {{
                                 addToQueue(device_id, songUris[i]);
                             }}
@@ -199,6 +210,14 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                                 console.log('Skipped to next track');
                                 document.getElementById('playbackStatus').innerHTML = '';
                                 if (playTimer) clearTimeout(playTimer);
+                                player.getCurrentState().then(state => {{
+                                    if (state && state.track_window.next_tracks.length === 0) {{
+                                        playTrack(spotifyDeviceId, songUris[0]);
+                                        for (let i = 1; i < songUris.length; i++) {{
+                                            addToQueue(spotifyDeviceId, songUris[i]);
+                                        }}
+                                    }}
+                                }});
                             }});
                         }});
 
@@ -214,7 +233,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                 }}
                 else {{
                     // If player exists, just update the track
-                    const uri = '{song_uri}';
+                    const songUris = {[song["uri"] for song in song_metadata_list]};
                     if (window.player) {{
                         window.player.activateElement();
                         fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {{
@@ -223,7 +242,7 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
                                 'Authorization': 'Bearer {token}',
                                 'Content-Type': 'application/json',
                             }},
-                            body: JSON.stringify({{ uris: [uri] }})
+                            body: JSON.stringify({{ uris: songUris }})
                         }});
                     }}
                 }}
