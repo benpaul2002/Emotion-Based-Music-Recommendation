@@ -10,8 +10,12 @@ import tempfile
 from collections import Counter
 from datetime import datetime, timedelta
 import tempfile
+from dotenv import load_dotenv
+import os
 
-YOUTUBE_API_KEY = "AIzaSyB3YTjRbS3H4ylFdzHz7185MrmCyJbMQdk"
+load_dotenv()
+
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 def get_youtube_video(VIDEO_PLACEHOLDER, song_details_list):
     video_ids = []
@@ -36,7 +40,7 @@ def get_youtube_video(VIDEO_PLACEHOLDER, song_details_list):
     
     if video_ids:
         playlist_string = ",".join(video_ids)
-        playlist_url = f"https://www.youtube.com/embed/{video_ids[0]}?playlist={playlist_string}"
+        playlist_url = f"https://www.youtube.com/embed/{video_ids[0]}?loop=1&playlist={playlist_string}"
         
         VIDEO_PLACEHOLDER.empty()
         VIDEO_PLACEHOLDER.markdown(

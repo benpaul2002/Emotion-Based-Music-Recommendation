@@ -78,174 +78,161 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
 
             <script src="https://sdk.scdn.co/spotify-player.js"></script>
             <script>
-                if (!window.playerInitialized) {{
-                    window.onSpotifyWebPlaybackSDKReady = () => {{
-                        const token = '{token}';
-                        const songUris = {[song["uri"] for song in song_metadata_list]};
-                        const token_str = "Bearer " + token;
-                        const duration = {duration_ms};
-                        let playTimer = null;
-                        let startTime = null;
-                        let isPaused = false;
-                        let remainingTime = duration;
-                        let currentTrackIndex = 0;
-                        let spotifyDeviceId = null;
-                        let trackWasStarted = false;
+                window.onSpotifyWebPlaybackSDKReady = () => {{
+                    const token = '{token}';
+                    const songUris = {[song["uri"] for song in song_metadata_list]};
+                    const token_str = "Bearer " + token;
+                    const duration = {duration_ms};
+                    let playTimer = null;
+                    let startTime = null;
+                    let isPaused = false;
+                    let remainingTime = duration;
+                    let currentTrackIndex = 0;
+                    let spotifyDeviceId = null;
+                    let trackWasStarted = false;
 
-                        const player = new Spotify.Player({{
-                            name: 'Streamlit Music Player',
-                            getOAuthToken: cb => cb(token),
-                            volume: 0.5
+                    const player = new Spotify.Player({{
+                        name: 'Streamlit Music Player',
+                        getOAuthToken: cb => cb(token),
+                        volume: 0.5
+                    }});
+
+                    player.addListener('player_state_changed', state => {{
+                        if (state) {{
+                            const currentTrack = state.track_window.current_track;
+                            const trackInfo = document.getElementById('trackInfo');
+                            const coverArt = document.getElementById('coverArt');
+                            trackInfo.innerHTML = `${{currentTrack.name}} - ${{currentTrack.artists.map(artist => artist.name).join(', ')}}`;
+                            coverArt.src = currentTrack.album.images[0].url;
+                            const isPaused = state.paused;
+                            const playbackPosition = state.position;
+
+                            if (isPaused) {{
+                                document.getElementById('playPauseButton').innerHTML = 'Play';
+                            }} else {{
+                                document.getElementById('playPauseButton').innerHTML = 'Pause';
+                            }}
+                            
+                            if (isPaused && playbackPosition === 0 && trackWasStarted) {{
+                                playTrack(spotifyDeviceId, songUris[0]);
+                                for (let i = 1; i < songUris.length; i++) {{
+                                    addToQueue(spotifyDeviceId, songUris[i]);
+                                }}
+                                trackWasStarted = false;
+                            }}
+                            
+                            if (!trackWasStarted && playbackPosition > 0 && !isPaused) {{
+                                trackWasStarted = true;
+                            }}
+                        }}
+                    }});
+
+                    function startPlaybackTimer() {{
+                        if (playTimer) clearTimeout(playTimer);
+                        startTime = Date.now();
+                        playTimer = setTimeout(() => {{ 
+                            document.getElementById('playPauseButton').innerHTML = 'Play';
+                        }}, remainingTime);
+                    }}
+
+                    function pausePlaybackTimer() {{
+                        if (playTimer) {{
+                            clearTimeout(playTimer);
+                            remainingTime = remainingTime - (Date.now() - startTime);
+                        }}
+                    }}
+
+                    player.addListener('ready', ({{ device_id }}) => {{
+                        console.log('Spotify Player ready with Device ID:', device_id);
+                        spotifyDeviceId = device_id;
+                        playTrack(device_id, songUris[currentTrackIndex]);
+                        for (let i = 1; i < songUris.length; i++) {{
+                            addToQueue(device_id, songUris[i]);
+                        }}
+                    }});
+
+                    function playTrack(device_id, uri) {{
+                        fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device_id, {{
+                            method: 'PUT',
+                            headers: {{
+                                'Authorization': token_str,
+                                'Content-Type': 'application/json',
+                            }},
+                            body: JSON.stringify({{ uris: [uri] }})
+                        }})
+                        .then(response => {{
+                            if (response.ok) {{
+                                console.log('Track is now playing!');
+                                startPlaybackTimer();
+                            }}
+                        }})
+                        .catch(error => console.error('Error while playing track:', error));
+                    }}
+
+                    function addToQueue(device_id, uri) {{
+                        fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri) + '&device_id=' + device_id, {{
+                            method: 'POST',
+                            headers: {{
+                                'Authorization': token_str,
+                            }}
+                        }})
+                        .then(response => {{
+                            if (response.ok) {{
+                                console.log('Track added to queue');
+                            }}
+                        }})
+                        .catch(error => console.error('Error while adding track to queue:', error));
+                    }}
+
+                    player.connect().then(success => {{
+                        if (success) {{
+                            console.log('Spotify Player connected successfully.');
+                        }} else {{
+                            console.error('Failed to connect Spotify Player.');
+                        }}
+                    }});
+
+                    document.getElementById('playPauseButton').addEventListener('click', () => {{
+                        player.togglePlay().then(() => {{
+                            const button = document.getElementById('playPauseButton');
+                            if (button.innerHTML === 'Play') {{
+                                button.innerHTML = 'Pause';
+                                document.getElementById('playbackStatus').innerHTML = '';
+                                if (isPaused) {{
+                                    startPlaybackTimer();
+                                }}
+                                isPaused = false;
+                            }} else {{
+                                button.innerHTML = 'Play';
+                                pausePlaybackTimer();
+                                isPaused = true;
+                            }}
                         }});
+                    }});
 
-                        player.addListener('player_state_changed', state => {{
-                            if (state) {{
-                                const currentTrack = state.track_window.current_track;
-                                const trackInfo = document.getElementById('trackInfo');
-                                const coverArt = document.getElementById('coverArt');
-                                trackInfo.innerHTML = `${{currentTrack.name}} - ${{currentTrack.artists.map(artist => artist.name).join(', ')}}`;
-                                coverArt.src = currentTrack.album.images[0].url;
-                                const isPaused = state.paused;
-                                const playbackPosition = state.position;
-                                
-                                if (isPaused && playbackPosition === 0 && trackWasStarted) {{
+                    document.getElementById('skipButton').addEventListener('click', () => {{
+                        player.nextTrack().then(() => {{
+                            console.log('Skipped to next track');
+                            document.getElementById('playbackStatus').innerHTML = '';
+                            if (playTimer) clearTimeout(playTimer);
+                            player.getCurrentState().then(state => {{
+                                if (state && state.track_window.next_tracks.length === 0) {{
                                     playTrack(spotifyDeviceId, songUris[0]);
                                     for (let i = 1; i < songUris.length; i++) {{
                                         addToQueue(spotifyDeviceId, songUris[i]);
                                     }}
-                                    trackWasStarted = false;
-                                }}
-                                
-                                if (!trackWasStarted && playbackPosition > 0 && !isPaused) {{
-                                    trackWasStarted = true;
-                                }}
-                            }}
-                        }});
-
-                        function startPlaybackTimer() {{
-                            if (playTimer) clearTimeout(playTimer);
-                            startTime = Date.now();
-                            playTimer = setTimeout(() => {{ 
-                                document.getElementById('playPauseButton').innerHTML = 'Play';
-                            }}, remainingTime);
-                        }}
-
-                        function pausePlaybackTimer() {{
-                            if (playTimer) {{
-                                clearTimeout(playTimer);
-                                remainingTime = remainingTime - (Date.now() - startTime);
-                            }}
-                        }}
-
-                        player.addListener('ready', ({{ device_id }}) => {{
-                            console.log('Spotify Player ready with Device ID:', device_id);
-                            spotifyDeviceId = device_id;
-                            playTrack(device_id, songUris[currentTrackIndex]);
-                            for (let i = 1; i < songUris.length; i++) {{
-                                addToQueue(device_id, songUris[i]);
-                            }}
-                        }});
-
-                        function playTrack(device_id, uri) {{
-                            fetch('https://api.spotify.com/v1/me/player/play?device_id=' + device_id, {{
-                                method: 'PUT',
-                                headers: {{
-                                    'Authorization': token_str,
-                                    'Content-Type': 'application/json',
-                                }},
-                                body: JSON.stringify({{ uris: [uri] }})
-                            }})
-                            .then(response => {{
-                                if (response.ok) {{
-                                    console.log('Track is now playing!');
-                                    startPlaybackTimer();
-                                }}
-                            }})
-                            .catch(error => console.error('Error while playing track:', error));
-                        }}
-
-                        function addToQueue(device_id, uri) {{
-                            fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(uri) + '&device_id=' + device_id, {{
-                                method: 'POST',
-                                headers: {{
-                                    'Authorization': token_str,
-                                }}
-                            }})
-                            .then(response => {{
-                                if (response.ok) {{
-                                    console.log('Track added to queue');
-                                }}
-                            }})
-                            .catch(error => console.error('Error while adding track to queue:', error));
-                        }}
-
-                        player.connect().then(success => {{
-                            if (success) {{
-                                console.log('Spotify Player connected successfully.');
-                            }} else {{
-                                console.error('Failed to connect Spotify Player.');
-                            }}
-                        }});
-
-                        document.getElementById('playPauseButton').addEventListener('click', () => {{
-                            player.togglePlay().then(() => {{
-                                const button = document.getElementById('playPauseButton');
-                                if (button.innerHTML === 'Play') {{
-                                    button.innerHTML = 'Pause';
-                                    document.getElementById('playbackStatus').innerHTML = '';
-                                    if (isPaused) {{
-                                        startPlaybackTimer();
-                                    }}
-                                    isPaused = false;
-                                }} else {{
-                                    button.innerHTML = 'Play';
-                                    pausePlaybackTimer();
-                                    isPaused = true;
                                 }}
                             }});
                         }});
+                    }});
 
-                        document.getElementById('skipButton').addEventListener('click', () => {{
-                            player.nextTrack().then(() => {{
-                                console.log('Skipped to next track');
-                                document.getElementById('playbackStatus').innerHTML = '';
-                                if (playTimer) clearTimeout(playTimer);
-                                player.getCurrentState().then(state => {{
-                                    if (state && state.track_window.next_tracks.length === 0) {{
-                                        playTrack(spotifyDeviceId, songUris[0]);
-                                        for (let i = 1; i < songUris.length; i++) {{
-                                            addToQueue(spotifyDeviceId, songUris[i]);
-                                        }}
-                                    }}
-                                }});
-                            }});
+                    document.getElementById('volume').addEventListener('input', (event) => {{
+                        const volume = event.target.value;
+                        player.setVolume(volume).then(() => {{
+                            console.log('Volume set to ' + volume);
                         }});
-
-                        document.getElementById('volume').addEventListener('input', (event) => {{
-                            const volume = event.target.value;
-                            player.setVolume(volume).then(() => {{
-                                console.log('Volume set to ' + volume);
-                            }});
-                        }});
-                    }};
-                    window.playerInitialized = true;
-                    window.player = player;
-                }}
-                else {{
-                    // If player exists, just update the track
-                    const songUris = {[song["uri"] for song in song_metadata_list]};
-                    if (window.player) {{
-                        window.player.activateElement();
-                        fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {{
-                            method: 'PUT',
-                            headers: {{
-                                'Authorization': 'Bearer {token}',
-                                'Content-Type': 'application/json',
-                            }},
-                            body: JSON.stringify({{ uris: songUris }})
-                        }});
-                    }}
-                }}
+                    }});
+                }};
             </script>
         """
 
@@ -258,4 +245,4 @@ def get_spotify_song(sp, user_product, SONG_PLACEHOLDER, song_metadata_list):
             )
 
     else:
-        SONG_PLACEHOLDER.markdown("Upgrade to Spotify Premium for in-app playback.")
+        SONG_PLACEHOLDER.markdown("You need a Spotify Premium account to play songs within the app")

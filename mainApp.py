@@ -18,16 +18,21 @@ from spotipy import Spotify
 from st_ant_carousel import st_ant_carousel
 import sqlite3
 from streamlit.components.v1 import html
+from st_keyup import st_keyup
+from dotenv import load_dotenv
+import os
 
-SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
-SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
-SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
-scope = "user-read-email streaming user-read-playback-state user-modify-playback-state app-remote-control user-read-private"
+load_dotenv()
+
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+SCOPE = os.getenv("SCOPE")
 
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
                                                client_secret=SPOTIFY_CLIENT_SECRET,
                                                redirect_uri=SPOTIFY_REDIRECT_URI,
-                                               scope=scope))
+                                               scope=SCOPE))
 
 LOGIN_URL = "http://localhost:8888/login"
 TOKEN_URL = "http://localhost:8888/token"
@@ -209,26 +214,22 @@ def setup_ui_and_auth():
     st.sidebar.title("Platform selection")
     if "platform_choice" not in st.session_state:
         st.session_state.platform_choice = "Spotify"
-    
-    spotify_selected = st.sidebar.button("Spotify", use_container_width=True, key="spotify_btn")
-    youtube_selected = st.sidebar.button("YouTube", use_container_width=True, key="youtube_btn")
-    
-    new_platform_choice = st.session_state.platform_choice
-    if spotify_selected:
-        new_platform_choice = "Spotify"
-    elif youtube_selected:
-        new_platform_choice = "YouTube"
-    
-    if new_platform_choice != st.session_state.platform_choice:
-        st.session_state.platform_choice = new_platform_choice
-        # st.rerun()
+
+    platform_options = ["Spotify", "YouTube"]
+    selected_platform = st.sidebar.selectbox(
+        "Select Platform",
+        options=platform_options,
+        index=0,
+        key="platform_select"
+    )
+
+    st.session_state.platform_choice = selected_platform
     
     sidebar_placeholder = st.sidebar.empty()
-    with sidebar_placeholder.expander("Settings", expanded=False):
+    with sidebar_placeholder:
         st.session_state.notifications_enabled = st.checkbox("Enable Notifications", value=True)
 
-    if st.session_state.platform_choice == "Spotify":
-        setup_spotify_auth()
+    setup_spotify_auth()
     
     setup_notifications()
 
@@ -326,20 +327,18 @@ def setup_ui_and_auth():
                             st.success(f"Added to {selected_emotion} playlist!")
                             html("<script>window.parent.location.reload();</script>")
 
-
-
 def process_emotion(frame, detector):
     emotions = detector.top_emotion(frame)
     if not emotions:
-        st.write("Could not detect any emotions. Please try again.")
+        # st.write("Could not detect any emotions. Please try again.")
         return None
     
     emotion, score = emotions
     if emotion is None:
-        st.write("Could not detect any emotions.")
+        # st.write("Could not detect any emotions.")
         return None
         
-    st.write(f"Detected emotion: **{emotion.capitalize()}** (confidence: {score * 100:.2f}%)")
+    # st.write(f"Detected emotion: **{emotion.capitalize()}** (confidence: {score * 100:.2f}%)")
     return emotion
 
 def show_notification(emotion, app_url):
@@ -419,8 +418,7 @@ def process_video_feed(cap, frame_window, detector, song_placeholder, video_plac
                         st.session_state.platform_choice,
                         st.session_state.spotify,
                         st.session_state.user_product,
-                        # dominant_emotion,
-                        "happy",
+                        dominant_emotion,
                         song_placeholder,
                         video_placeholder
                     )
@@ -445,26 +443,26 @@ def run_main_app():
     media_container = st.empty()
     emotion_container = st.empty()
     
-    with input_container:
-        input_type = st.radio("Choose Input Source", ["Webcam", "Upload Video"], index=0)
+    # with input_container:
+    #     input_type = st.radio("Choose Input Source", ["Webcam", "Upload Video"], index=0)
 
     detector = FER(mtcnn=True)
     cap = None
     
-    if input_type == "Webcam":
-        run = st.checkbox("Start Webcam")
-        if run:
-            cap = cv2.VideoCapture(0)
-    else:
-        uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
-        if uploaded_video:
-            tfile = tempfile.NamedTemporaryFile(delete=False)
-            tfile.write(uploaded_video.read())
-            cap = cv2.VideoCapture(tfile.name)
+    # if input_type == "Webcam":
+    #     run = st.checkbox("Start Webcam")
+    #     if run:
+    #         cap = cv2.VideoCapture(0)
+    # else:
+    #     uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
+    #     if uploaded_video:
+    #         tfile = tempfile.NamedTemporaryFile(delete=False)
+    #         tfile.write(uploaded_video.read())
+    #         cap = cv2.VideoCapture(tfile.name)
     
-    # run = st.checkbox("Start Webcam")
-    # if run:
-    #     cap = cv2.VideoCapture(0)
+    run = st.checkbox("Start Webcam")
+    if run:
+        cap = cv2.VideoCapture(0)
 
     FRAME_WINDOW = frame_container.image([])
     

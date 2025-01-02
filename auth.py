@@ -1,15 +1,20 @@
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, jsonify
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
 import time
 import sqlite3
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
 
-SPOTIFY_CLIENT_ID = "94d868e7e3a94675bd84281027898e84"
-SPOTIFY_CLIENT_SECRET = "301a09e8829e41e498a12408cc4a553f"
-SPOTIFY_REDIRECT_URI = "http://localhost:8888/callback"
-SCOPE = "user-read-email streaming user-read-private"
-CACHE_PATH = ".spotify_cache"
+load_dotenv()
+
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+SCOPE = os.getenv("SCOPE")
+CACHE_PATH = os.getenv("CACHE_PATH")
 
 app = Flask(__name__)
 
